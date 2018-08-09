@@ -1,5 +1,5 @@
 # Magento 2.2+ Docker Stack
-Webjump's official Magento docker stack
+My default docker environment for Magento 2
 
 ## Highlights
 - Support docker-compose file V3 - easy to scale up;
