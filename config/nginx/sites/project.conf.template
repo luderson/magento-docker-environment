@@ -1,0 +1,126 @@
+## Maps config file
+    include conf.d/maps.conf;
+    
+## www redirect
+#server {
+#        listen 80;
+#	server_name example.com;
+#	return 301 $scheme://www.example.com$request_uri;
+#}
+
+## Proxy server to terminate ssl, loop to Varnish-HTTP -> nginx-HTTPS
+#server {
+#    listen 443 ssl http2;
+#    server_name *.example.com;
+#
+#    sub_filter 'http://'  'https://';
+#    sub_filter_once off;  
+#    
+#    ####################################################################################
+#    ## SSL CONFIGURATION
+#    #ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem; 
+#    #ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+#
+#    # proxy-pass to Varnish
+#    location / {
+#        proxy_pass  http://127.0.0.1:8081;
+#        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#        proxy_set_header X-Forwarded-Host $host;
+#        proxy_set_header Host $host;
+#        proxy_set_header X-Scheme https;
+#        proxy_set_header X-Real-IP $remote_addr;
+#        proxy_set_header X-Forwarded-Proto https;
+#        proxy_set_header X-Forwarded-Port 443;
+#        proxy_set_header X-Secure on;
+#        proxy_set_header Accept-Encoding "";
+#        proxy_set_header Connection "";
+#        proxy_http_version 1.1;
+#        proxy_read_timeout 7200s;
+#        proxy_send_timeout 7200s;
+#    }
+#}
+
+## HTTPS redirect
+server {
+    listen 	80;
+    server_name ${NGINX_SERVER_NAME_AUX};
+
+    return 301 https://${NGINX_SERVER_NAME_AUX}$request_uri;
+}
+
+server {
+	listen 443 ssl http2;
+	server_name ${NGINX_SERVER_NAME_AUX};
+	
+	access_log  /var/log/nginx/access.log  main if=$writelog;
+	error_log   /var/log/nginx/error.log  error;
+	
+	if ($bad_client) { return 444; }
+	
+	##################################
+	## Set Magento root folder
+	set $MAGE_ROOT /var/www/html/${PROJECT_ROOT};
+	## Set main public directory /pub
+	root $MAGE_ROOT/pub;
+	##################################
+	
+	## SSL CONFIGURATION
+	ssl_certificate     /etc/nginx/ssl/nginx.crt;
+    ssl_certificate_key /etc/nginx/ssl/nginx.key;
+	
+	## Nginx and php-fpm status
+	include conf.d/status.conf;
+    
+	## Server maintenance block.
+	#include conf.d/maintenance.conf;
+	
+	## Magento Setup Tool
+	include conf.d/setup.conf;
+	
+	# Deny all internal locations also default phpmyadmin
+	location ~ ^/(app|bin|var|tmp|phpserver|vendor|magento_version|php[mM]y[aA]dmin|pma)/? { deny all; }
+	   
+	location / {
+		try_files $uri $uri/ /index.php$is_args$args;
+		}
+
+    ## Error log/page
+	#include conf.d/error_page.conf;
+
+	## Static location
+        include conf.d/assets.conf;
+
+        location @static { rewrite /static/(version\d*/)?(.*)$ /static.php?resource=$2 last; }
+        location @media { try_files $uri $uri/ /get.php$is_args$args; }
+  
+	## Protect extra directories
+	include conf.d/extra_protect.conf;
+	   
+	## Process php files (strict rule, define files to be executed)
+	location ~ (index|health_check|get|static|report|404|503)\.php$ {
+		try_files $uri =404;
+		#fastcgi_intercept_errors on;
+		include conf.d/php_backend.conf;
+		## Store code with multi domain
+		fastcgi_param	MAGE_RUN_CODE ${RUN_CODE};
+		fastcgi_param	MAGE_RUN_TYPE ${RUN_TYPE};
+		fastcgi_param   MAGE_MODE ${MAGE_MODE};
+		## Enable POST logging in admin
+		#if ($request_method = POST) {set $adminpost A;}
+		#if ($request_uri ~* "/ADMIN_PLACEHOLDER/") {set $adminpost "${adminpost}B";}
+		#if ($adminpost = AB) { access_log /var/log/nginx/admin_post.log adminpost;}
+		## Microcache
+		fastcgi_no_cache $no_cache;
+		fastcgi_cache_bypass $no_cache;
+		fastcgi_cache microcache;
+		fastcgi_cache_key $scheme|$host|search|$arg_q;
+		fastcgi_cache_valid 200 301 302 2h;
+		fastcgi_cache_use_stale updating error timeout invalid_header http_500;
+		fastcgi_pass_header Set-Cookie;
+		fastcgi_pass_header Cookie;
+		fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
+		}
+	
+	## Block other undefined php files, possible injections and random malware hooks.
+	location ~* \.php$ { return 404; }
+}
