@@ -41,27 +41,7 @@ My default docker environment for Magento 2
         * Connect to your PHP container:
             * `$ docker exec -ti [container-name] bash`
         * Go to Magento's root folder and run:
-            * `$ php bin/magento setup:install \
-            --base-url=http://base.magento.local \
-            --use-secure=1 \
-            --base-url-secure=https://base.magento.local \
-            --backend-frontname=admin \
-            --use-secure-admin=1 \
-            --db-host=db \
-            --db-name=magento \
-            --db-user=magento \
-            --db-password=magento \
-            --admin-firstname=Webjump \
-            --admin-lastname=Informatica \
-            --admin-email=developer@webjump.com.br \
-            --admin-user=webjump \
-            --admin-password=demo1234 \
-            --language=pt_BR \
-            --currency=BRL \
-            --timezone=America/Sao_Paulo \
-            --cleanup-database \
-            --session-save=db \
-            --use-rewrites=1`
+            * `$ php bin/magento setup:install --base-url=http://base.magento.local --use-secure=1 --base-url-secure=https://base.magento.local --backend-frontname=admin --use-secure-admin=1 --db-host=db --db-name=magento --db-user=magento --db-password=magento --admin-firstname=User --admin-lastname=Magento --admin-email=developer@magento.com.br --admin-user=admin --admin-password=demo1234 --language=pt_BR --currency=BRL --timezone=America/Sao_Paulo --cleanup-database --session-save=db --use-rewrites=1`
                 * Change the parameters according to your needs.
                 * The db-host parameter will always be **'db'** for both, browser or CLI installation
 7. Now you can access your Magento installation through your domain.
