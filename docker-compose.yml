@@ -1,0 +1,75 @@
+version: '3'
+services:
+  web:
+    image: luderson/nginx:latest
+    env_file: .env
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./src:/var/www/html
+      - ./config/nginx:/etc/nginx
+      - ./scripts/nginx-config.sh:/usr/local/bin/nginx-config.sh
+    depends_on:
+      - php
+    command: sh -c "chmod +x /usr/local/bin/nginx-config.sh && nginx-config.sh"
+    networks:
+      - frontend
+      - backend
+  php:
+    image: "luderson/php:${PHP_VERSION}"
+    env_file: .env
+    volumes:
+      - ./src:/var/www/html
+      - ./config/php/conf.d/docker-php-ext-opcache.ini:/usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+      - ./config/php/conf.d/docker-php-ext-xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+      - ./config/php/php.ini:/usr/local/etc/php/php.ini
+      - cron_files:/var/spool/cron/crontabs/
+      - ./config/composer/auth.json:/var/www/.composer/auth.json
+    user: www-data
+    networks:
+      - backend
+  cron:
+    image: "luderson/cron:${PHP_VERSION}"
+    env_file: .env
+    volumes:
+      - ./src:/var/www/html
+      - ./config/php/php.ini:/usr/local/etc/php/php.ini
+      - cron_files:/var/spool/cron/crontabs/
+    networks:
+      - backend
+  db:
+    image: luderson/percona:latest
+    env_file: .env
+    ports:
+      - 3306:3306
+    volumes:
+      - database_data:/var/lib/mysql
+      - ./config/dump/:/dump/
+    networks:
+      - backend
+  redis:
+    image: luderson/redis:3.2
+    networks:
+      - backend
+  mail:
+    container_name: ${MAILHOG}
+    image: mailhog/mailhog:latest
+    env_file: .env
+    ports:
+      - 1025:1025
+      - 8025:8025
+    networks:
+      - frontend
+      - backend
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
+volumes:
+  database_data:
+    driver: local
+  cron_files:
+    driver: local
