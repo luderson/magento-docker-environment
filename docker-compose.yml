@@ -1,4 +1,4 @@
-version: '2'
+version: '3'
 services:
   web:
     image: luderson/nginx:latest
@@ -17,7 +17,7 @@ services:
       - frontend
       - backend
   php:
-    image: "luderson/php:${PHP_VERSION}"
+    image: "luderson/php:${PHP_VERSION}-${USER_UID}"
     env_file: .env
     volumes:
       - ./src:/var/www/html
@@ -30,7 +30,7 @@ services:
     networks:
       - backend
   cron:
-    image: "luderson/cron:${PHP_VERSION}"
+    image: "luderson/cron:${PHP_VERSION}-${USER_UID}"
     env_file: .env
     volumes:
       - ./src:/var/www/html
@@ -39,7 +39,7 @@ services:
     networks:
       - backend
   db:
-    image: luderson/percona:latest
+    image: mariadb:10.4
     env_file: .env
     ports:
       - 3306:3306
@@ -47,6 +47,16 @@ services:
       - database_data:/var/lib/mysql
       - ./config/dump/:/dump/
     networks:
+      - backend
+  elasticsearch:
+    image: elasticsearch:7.6.2
+    env_file: .env
+    ports:
+      - 9200:9200
+      - 9300:9300
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks: 
       - backend
   redis:
     image: luderson/redis:3.2
@@ -67,9 +77,10 @@ networks:
     driver: bridge
   backend:
     driver: bridge
-
 volumes:
   database_data:
     driver: local
   cron_files:
+    driver: local
+  es_data:
     driver: local
