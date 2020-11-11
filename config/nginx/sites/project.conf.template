@@ -63,6 +63,14 @@ server {
 	## Set main public directory /pub
 	root $MAGE_ROOT/pub;
 	##################################
+
+	## Gzipping is an easy way to reduce page weight
+    gzip                on;
+    gzip_vary           on;
+    gzip_proxied        any;
+    gzip_types          application/javascript application/x-javascript application/rss+xml text/javascript text/css text/plain image/x-icon image/svg+xml;
+    gzip_buffers        4 16k;
+    gzip_comp_level     6;
 	
 	## SSL CONFIGURATION
 	ssl_certificate     /etc/nginx/ssl/nginx.crt;
@@ -77,38 +85,51 @@ server {
 	## Magento Setup Tool
 	include conf.d/setup.conf;
 	
-	# Deny all internal locations also default phpmyadmin
-	location ~ ^/(app|bin|var|tmp|phpserver|vendor|magento_version|php[mM]y[aA]dmin|pma)/? { deny all; }
+	## sitemap and feeds?
+   	location ^/(robots\.txt|google.*\.html) { root $MAGE_ROOT/pub/media; }
+   	location ^/sitemap\.xml { root $MAGE_ROOT/pub/media/sitemap; }
+   	location ~ ^/feeds/.*\.(xml|csv|txt) { root $MAGE_ROOT/pub/media; }
+	
+	## Deny all internal locations
+	location ~ ^/(app|generated|lib|bin|var|tmp|phpserver|vendor)/ { 
+		deny all; 
+   	}
 	   
 	location / {
 		try_files $uri $uri/ /index.php$is_args$args;
-		}
+	}
 
     ## Error log/page
 	#include conf.d/error_page.conf;
 
 	## Static location
-        include conf.d/assets.conf;
+	include conf.d/assets.conf;
 
-        location @static { rewrite /static/(version\d*/)?(.*)$ /static.php?resource=$2 last; }
-        location @media { try_files $uri $uri/ /get.php$is_args$args; }
-  
 	## Protect extra directories
 	include conf.d/extra_protect.conf;
 	   
 	## Process php files (strict rule, define files to be executed)
 	location ~ (index|health_check|get|static|report|404|503)\.php$ {
 		try_files $uri =404;
+		
 		#fastcgi_intercept_errors on;
 		include conf.d/php_backend.conf;
+		
 		## Store code with multi domain
 		fastcgi_param	MAGE_RUN_CODE ${RUN_CODE};
 		fastcgi_param	MAGE_RUN_TYPE ${RUN_TYPE};
+
+		## Mage mode
 		fastcgi_param   MAGE_MODE ${MAGE_MODE};
+
+		## Enable Magento profiler
+		#fastcgi_param MAGE_PROFILER $MAGE_PROFILER;
+		
 		## Enable POST logging in admin
 		#if ($request_method = POST) {set $adminpost A;}
 		#if ($request_uri ~* "/ADMIN_PLACEHOLDER/") {set $adminpost "${adminpost}B";}
 		#if ($adminpost = AB) { access_log /var/log/nginx/admin_post.log adminpost;}
+		
 		## Microcache
 		fastcgi_no_cache $no_cache;
 		fastcgi_cache_bypass $no_cache;
@@ -119,7 +140,7 @@ server {
 		fastcgi_pass_header Set-Cookie;
 		fastcgi_pass_header Cookie;
 		fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
-		}
+	}
 	
 	## Block other undefined php files, possible injections and random malware hooks.
 	location ~* \.php$ { return 404; }
