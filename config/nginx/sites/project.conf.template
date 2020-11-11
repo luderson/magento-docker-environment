@@ -123,7 +123,7 @@ server {
 		fastcgi_param   MAGE_MODE ${MAGE_MODE};
 
 		## Enable Magento profiler
-		#fastcgi_param MAGE_PROFILER $MAGE_PROFILER;
+		#fastcgi_param MAGE_PROFILER ${MAGE_PROFILER};
 		
 		## Enable POST logging in admin
 		#if ($request_method = POST) {set $adminpost A;}
